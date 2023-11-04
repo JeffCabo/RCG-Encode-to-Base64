@@ -7,15 +7,15 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import axios from "axios";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import config from "../../config.json";
 
-const StringConverter: React.FC = () => {
-  const [valLenght, setValLenght] = useState(0);
+const StringConverter: React.FC = () => { 
   const [strValue, setStrValue] = useState("");
   const [convertedValue, setConvertedValue] = useState("");
   const [errMessage, setErrMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const abortControllerRef = useRef(new AbortController());
 
   const fetchConvertedStringLen = async () => {
     try {
@@ -26,7 +26,7 @@ const StringConverter: React.FC = () => {
       return response.data;
     } catch (error) {
       console.error("Error fetching results: ", error);
-      setErrMessage( "Something went wrong. Please try again.");
+      setErrMessage("Something went wrong. Please try again.");
     }
   };
 
@@ -39,7 +39,7 @@ const StringConverter: React.FC = () => {
       return response.data;
     } catch (error) {
       console.error("Error fetching results: ", error);
-     setErrMessage( "Something went wrong. Please try again.");
+      setErrMessage("Something went wrong. Please try again.");
     }
   };
 
@@ -49,7 +49,14 @@ const StringConverter: React.FC = () => {
     setConvertedValue("");
   };
 
+  const handleCancelClick = () => {
+    abortControllerRef.current.abort();
+    console.log("handleCancelClick");
+  };
+
   const handleClick = async () => {
+    abortControllerRef.current = new AbortController();
+
     setConvertedValue("");
     if (strValue.length == 0 || strValue === null || strValue === undefined) {
       setErrMessage("Please input a text.");
@@ -62,6 +69,12 @@ const StringConverter: React.FC = () => {
     if (strLen) {
       let maxLenght = Number(strLen);
       for (let i = 1; i <= maxLenght; i++) {
+        if (abortControllerRef.current.signal.aborted) {
+          console.log("cancel process");
+          setIsLoading(false);
+          return;
+        }
+
         const res = await fetchConvertedStringChar(i);
         if (res) {
           setConvertedValue((prev) => prev.concat(res));
@@ -90,6 +103,7 @@ const StringConverter: React.FC = () => {
               id="outlined-multiline-static"
               label="Text"
               multiline
+              disabled={isLoading}
               rows={4}
               sx={{ width: "100%" }}
               value={strValue}
@@ -119,7 +133,7 @@ const StringConverter: React.FC = () => {
             <TextField
               id="outlined-multiline-static"
               label="Based64"
-              disabled="true"
+              disabled={true}
               multiline
               rows={4}
               value={convertedValue}
@@ -128,18 +142,36 @@ const StringConverter: React.FC = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <Typography 
-              sx={{ marginBottom: "18px", color: "#CC5500" }}
-            >
+            <Typography sx={{ marginBottom: "18px", color: "#CC5500" }}>
               {errMessage}
             </Typography>
-            
-            <Typography 
-              sx={{ marginBottom: "18px", color: "#6082B6" }}
-            >
-              {isLoading ? ("Processing. Please wait") : ("")}
+
+            <Typography sx={{ marginBottom: "18px", color: "#6082B6" }}>
+              {isLoading ? <> Processing. Please wait</> : ""}
             </Typography>
           </Grid>
+          <Grid item xs={5}></Grid>
+          <Grid item xs={2}>
+            {isLoading ? (
+              <>
+                {" "}
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  color="error"
+                  sx={{ mt: 3, mb: 2 }}
+                  onClick={handleCancelClick}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              ""
+            )}
+          </Grid>
+
+          <Grid item xs={5}></Grid>
         </Grid>
       </Box>
     </>
